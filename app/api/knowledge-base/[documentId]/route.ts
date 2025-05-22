@@ -3,7 +3,6 @@ import { join } from 'path';
 import { readFile } from 'fs/promises';
 import * as fs from 'fs';
 
-// GET: Retrieve a specific document from the knowledge base
 export async function GET(
   request: Request,
   context: { params: { documentId: string } }
