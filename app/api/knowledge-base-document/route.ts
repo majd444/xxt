@@ -1,14 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { join } from 'path';
 import { readFile } from 'fs/promises';
 import * as fs from 'fs';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { documentId: string } }
-) {
+// GET: Retrieve a specific document from the knowledge base using query parameters
+export async function GET(request: NextRequest) {
   try {
-    const documentId = params.documentId;
+    const { searchParams } = new URL(request.url);
+    const documentId = searchParams.get('documentId');
     
     if (!documentId) {
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
