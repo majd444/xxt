@@ -1,22 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { join } from 'path';
 import { readFile } from 'fs/promises';
 import * as fs from 'fs';
 
-// Define params type for route handler
-type DocumentParams = {
-  params: {
-    documentId: string;
-  };
-};
-
-// GET: Retrieve a specific document from the knowledge base
 export async function GET(
-  request: NextRequest,
-  { params }: DocumentParams
+  request: Request,
+  { params }: { params: { documentId: string } }
 ) {
   try {
-    const { documentId } = params;
+    const documentId = params.documentId;
     
     if (!documentId) {
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
