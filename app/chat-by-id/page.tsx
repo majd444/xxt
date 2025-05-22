@@ -1,17 +1,16 @@
 "use client"
 
 import { useChat } from "@ai-sdk/react"
+import { useSearchParams } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Paperclip, Bot } from "lucide-react"
 
-// Using a different approach to avoid TypeScript errors with Next.js 15 params
-export default function ChatPage(
-  { params }: { params: { id: string } }
-) {
-  const chatId = params?.id || 'default';
+export default function ChatByIdPage() {
+  const searchParams = useSearchParams();
+  const chatId = searchParams.get('id') || 'default';
   
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
