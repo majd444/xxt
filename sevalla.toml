@@ -1,0 +1,10 @@
+[app]
+name = "chatbot-automation"
+framework = "nextjs"
+
+[build]
+command = "npm run build"
+publish = ".next"
+
+[env]
+NODE_VERSION = "18"
