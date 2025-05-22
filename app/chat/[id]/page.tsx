@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Paperclip, Bot } from "lucide-react"
 
-type PageProps = {
+interface PageProps {
   params: {
     id: string;
   };
-};
+  searchParams?: Record<string, string | string[]>;
+}
 
 export default function ChatPage({ params }: PageProps) {
   // Note: In Next.js 14+, the proper way would be to use React.use()
