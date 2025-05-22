@@ -6,10 +6,10 @@ import * as fs from 'fs';
 // GET: Retrieve a specific document from the knowledge base
 export async function GET(
   request: Request,
-  { params }: { params: { documentId: string } }
+  context: { params: { documentId: string } }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = context.params;
     
     if (!documentId) {
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
