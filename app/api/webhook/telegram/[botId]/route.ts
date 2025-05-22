@@ -8,10 +8,10 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { botId: string } }
+  context: { params: { botId: string } }
 ) {
   try {
-    const botId = params.botId;
+    const botId = context.params.botId;
     const update = await request.json();
     
     console.log(`Received Telegram update for bot ${botId}:`, JSON.stringify(update).substring(0, 200) + '...');
