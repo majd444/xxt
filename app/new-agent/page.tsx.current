@@ -1,0 +1,1303 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { AuthRedirectInterceptor } from "../auth-redirect"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Slider } from "@/components/ui/slider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ChatInterface } from "@/components/chat-interface"
+import { Card, CardHeader } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ColorPalette } from "@/components/ui/color-palette"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { DocumentContentViewer } from "@/components/document-content-viewer";
+import { RefreshCw, ExternalLink, Trash2, File } from "lucide-react"
+
+export default function NewAgentPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Declaring dialog state and debug function later
+  
+  // Handle auth parameters if we're returning from authentication
+  useEffect(() => {
+    const auth = searchParams.get('auth')
+    const service = searchParams.get('service')
+    const componentId = searchParams.get('componentId')
+    
+    if (auth === 'success' && service && componentId) {
+      console.log('Successfully authenticated service:', service, 'for component:', componentId)
+      // Set localStorage flag to indicate successful authentication
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`google_${service}_connected`, 'true')
+      }
+    }
+  }, [searchParams])
+  
+  const [activeTab, setActiveTab] = useState("configuration")
+  // State for URL import and file upload functionality
+  const [isLoading, setIsLoading] = useState(false)
+  const [editData, setEditData] = useState<any>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [workflowId, setWorkflowId] = useState<string | null>(null)
+  const [fileUploadStatus, setFileUploadStatus] = useState({ uploading: false, error: null as string | null, success: null as string | null })
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [showTrainingDialog, setShowTrainingDialog] = useState(false)
+  const [dialogContent, setDialogContent] = useState<{title: string, items: string[], content?: string, documentId?: string, description?: string}>({
+    title: 'Documents for Training',
+    items: [],
+    content: '',
+    documentId: '',
+    description: ''
+  })
+  
+  // Helper function to fix accessibility issues with dialogs
+  const fixDialogAccessibility = () => {
+    setTimeout(() => {
+      // Find all elements with aria-hidden applied by RadixUI
+      document.querySelectorAll('[aria-hidden="true"]').forEach(element => {
+        if (element.classList.contains('main-container')) {
+          element.removeAttribute('aria-hidden');
+        }
+      });
+    }, 50);
+  }
+  
+  // Debug function for the dialog (prefixed with _ as it's only used in one place)
+  const _debugDialogContent = () => {
+    console.log('Dialog content:', dialogContent)
+  }
+  
+  // Edit mode state
+  const agentId = searchParams.get("agentId")
+  const [extractionUrl, setExtractionUrl] = useState("") // URL for content extraction
+  const [extractedLinks, setExtractedLinks] = useState<string[]>([])
+  const [isExtracting, setIsExtracting] = useState(false)
+  
+  // Configuration state
+  const [name, setName] = useState("AI Assistant")
+  const [temperature, setTemperature] = useState(70)
+  const [systemPrompt, setSystemPrompt] = useState("You are a helpful AI assistant.")
+  
+  // Style state
+  const [topColor, setTopColor] = useState("#1f2937")
+  const [accentColor, setAccentColor] = useState("#3B82F6")
+  const [backgroundColor, setBackgroundColor] = useState("#F3F4F6")
+  const [outsideButtonUrl, setOutsideButtonUrl] = useState("")
+  const [outsideButtonText, setOutsideButtonText] = useState("Chat with our AI assistant!")
+  
+  // Sync color changes with workflow
+  const updateWorkflowColors = async (colors: {topColor?: string, accentColor?: string, backgroundColor?: string}) => {
+    if (!workflowId) return // Only update if we have a workflowId
+    
+    try {
+      const response = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...colors,
+          userId: "default-user"
+        }),
+      })
+      
+      if (!response.ok) {
+        console.error('Failed to update workflow colors:', response.status)
+        const errorText = await response.text()
+        console.error('Error details:', errorText)
+      } else {
+        console.log('Workflow colors updated successfully')
+      }
+    } catch (error) {
+      console.error('Error updating workflow colors:', error)
+    }
+  }
+  
+  // Enhanced color setters that also update workflow
+  const handleTopColorChange = (color: string) => {
+    setTopColor(color)
+    updateWorkflowColors({ topColor: color })
+  }
+  
+  const handleAccentColorChange = (color: string) => {
+    setAccentColor(color)
+    updateWorkflowColors({ accentColor: color })
+  }
+  
+  const handleBackgroundColorChange = (color: string) => {
+    setBackgroundColor(color)
+    updateWorkflowColors({ backgroundColor: color })
+  }
+  
+  // Workflow and conversation starters
+  const [conversationStarters, setConversationStarters] = useState<string[]>([])
+  
+  // Navigate to workflow page after saving temporary state
+  const handleWorkflowClick = async () => {
+    // Create or update the workflow with current values, but don't show it as saved in the UI
+    try {
+      setIsSaving(true) // Show saving indicator
+      
+      // First, create a workflow if none exists
+      let currentWorkflowId = workflowId;
+      if (!currentWorkflowId) {
+        try {
+          // Create a basic workflow first
+          const workflowResponse = await fetch('/api/workflows', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: `${name} Workflow`,
+              description: "Auto-created workflow for agent",
+              components: [],
+              connections: [],
+              conversationTexts: {},
+              selectedToolIds: {},
+              userId: "default-user",
+              // Include styling configuration
+              chatbotName: name,
+              systemPrompt: systemPrompt,
+              topColor: topColor,
+              accentColor: accentColor,
+              backgroundColor: backgroundColor,
+              // Fine tuning configuration
+              temperature: temperature / 100,
+              model: "llama-3.1",
+              maxTokens: 2000
+            }),
+          });
+
+          if (!workflowResponse.ok) {
+            throw new Error(`Failed to create workflow: ${workflowResponse.status}`);
+          }
+
+          const workflowResult = await workflowResponse.json();
+          currentWorkflowId = workflowResult.workflowId;
+          setWorkflowId(currentWorkflowId) // Update state with new ID
+          console.log(`Created workflow with ID: ${currentWorkflowId}`);
+        } catch (workflowError) {
+          console.error('Error creating workflow:', workflowError);
+          alert('Failed to create workflow before navigation');
+          setIsSaving(false);
+          return; // Stop navigation if workflow creation fails
+        }
+      } else {
+        // Update existing workflow with all current values
+        try {
+          const updateResponse = await fetch(`/api/workflows/${currentWorkflowId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: `${name} Workflow`,
+              description: "Updated workflow for agent",
+              chatbotName: name,
+              systemPrompt: systemPrompt,
+              topColor: topColor,
+              accentColor: accentColor,
+              backgroundColor: backgroundColor,
+              temperature: temperature / 100,
+              model: "llama-3.1",
+              maxTokens: 2000,
+              userId: "default-user"
+            }),
+          });
+          
+          if (!updateResponse.ok) {
+            throw new Error(`Failed to update workflow: ${updateResponse.status}`);
+          }
+          
+          console.log('Workflow updated before navigation');
+        } catch (updateError) {
+          console.error('Error updating workflow:', updateError);
+          alert('Failed to update workflow before navigation');
+          setIsSaving(false);
+          return; // Stop navigation if update fails
+        }
+      }
+      
+      setIsSaving(false) // Hide saving indicator
+      
+      // Navigate to workflow page with the current ID
+      router.push(`/workflow/new?id=${currentWorkflowId}`);
+    } catch (error) {
+      console.error('Error in workflow navigation process:', error);
+      setIsSaving(false);
+      alert('An error occurred. Please try again.');
+    }
+  }
+  
+  // Handle back/cancel - go home
+  const handleCancel = () => {
+    router.push("/")
+  }
+  
+  // Fetch agent data when in edit mode
+  useEffect(() => {
+    // First check if we're in edit mode and have an agent ID
+    if (isEditMode && agentId) {
+      setIsLoading(true)
+      
+      // Try to fetch the agent data
+      fetch(`/api/agents/${agentId}`)
+        .then(response => {
+          if (!response.ok) {
+            // If we get a 404 or 500, we'll skip and just create a new agent
+            if (response.status === 404 || response.status === 500) {
+              console.warn(`Agent with ID ${agentId} not found or API error, creating new agent instead`)
+              return null
+            }
+            throw new Error(`Error fetching agent: ${response.status}`)
+          }
+          return response.json()
+        })
+        .then(data => {
+          if (!data) return // Skip if we didn't get data back
+          
+          // Populate all form fields with agent data
+          if (data.agent) {
+            const agent = data.agent
+            
+            // Basic info
+            setName(agent.chatbotName || agent.name || "AI Assistant")
+            setSystemPrompt(agent.systemPrompt || "You are a helpful AI assistant.")
+            
+            // Set configuration values
+            setTemperature(Math.round((agent.temperature || 0.7) * 100))
+            
+            // Set styles
+            if (agent.topColor) setTopColor(agent.topColor)
+            if (agent.accentColor) setAccentColor(agent.accentColor)
+            if (agent.backgroundColor) setBackgroundColor(agent.backgroundColor)
+            if (agent.outsideButtonText) setOutsideButtonText(agent.outsideButtonText)
+            if (agent.outsideButtonUrl) setOutsideButtonUrl(agent.outsideButtonUrl)
+            
+            // Set workflow ID if available
+            if (agent.workflowId) setWorkflowId(agent.workflowId)
+            
+            // Set conversation starters if available in extraConfig
+            if (agent.extraConfig && agent.extraConfig.conversationStarters) {
+              setConversationStarters(agent.extraConfig.conversationStarters)
+            }
+            
+            // Set training data if available
+            if (agent.extraConfig && agent.extraConfig.trainingData) {
+              if (agent.extraConfig.trainingData.extractedLinks) {
+                setExtractedLinks(agent.extraConfig.trainingData.extractedLinks)
+              }
+              if (agent.extraConfig.trainingData.uploadedFiles) {
+                setUploadedFiles(agent.extraConfig.trainingData.uploadedFiles)
+              }
+            }
+            
+            console.log('Agent data loaded successfully', agent)
+          }
+        })
+        .catch(err => {
+          console.error('Error loading agent:', err)
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    }
+  }, [isEditMode, agentId])
+  
+  // Fetch workflow data if a workflowId is provided
+  useEffect(() => {
+    const workflowIdParam = searchParams.get("workflowId")
+    
+    if (workflowIdParam && !isEditMode) {
+      const parsedId = parseInt(workflowIdParam)
+      setWorkflowId(parsedId)
+      
+      // Show loading state
+      setIsExtracting(true)
+      
+      // Fetch workflow data
+      fetch(`/api/workflows/${parsedId}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status}`)
+          }
+          return response.json()
+        })
+        .then(data => {
+          // Extract conversation starters from workflow data
+          if (data.workflow && data.workflow.conversationTexts) {
+            const starters = Object.values(data.workflow.conversationTexts)
+              .filter((text: any) => typeof text === 'string' && text.trim() !== "")
+            
+            setConversationStarters(starters as string[])
+            console.log('Conversation starters loaded:', starters)
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching workflow data:', err)
+        })
+        .finally(() => {
+          setIsExtracting(false)
+        })
+    }
+  }, [searchParams, isEditMode])
+  
+  // Save agent function
+  const saveAgent = async () => {
+    try {
+      setIsSaving(true)
+
+      // First, create a simple workflow if none exists
+      let currentWorkflowId = workflowId;
+      if (!currentWorkflowId) {
+        try {
+          // Create a basic workflow first
+          const workflowResponse = await fetch('/api/workflows', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: `${name} Workflow`,
+              description: "Auto-created workflow for agent",
+              components: [],
+              connections: [],
+              conversationTexts: {},
+              selectedToolIds: {},
+              userId: "default-user",
+              // Include styling configuration
+              chatbotName: name,
+              systemPrompt: systemPrompt,
+              topColor: topColor,
+              accentColor: accentColor,
+              backgroundColor: backgroundColor,
+              // Fine tuning configuration
+              temperature: temperature / 100,
+              model: "llama-3.1",
+              maxTokens: 2000
+            }),
+          });
+
+          if (!workflowResponse.ok) {
+            throw new Error(`Failed to create workflow: ${workflowResponse.status}`);
+          }
+
+          const workflowResult = await workflowResponse.json();
+          currentWorkflowId = workflowResult.workflowId;
+          console.log(`Created workflow with ID: ${currentWorkflowId}`);
+        } catch (workflowError) {
+          console.error('Error creating workflow:', workflowError);
+          throw new Error('Failed to create workflow for agent');
+        }
+      }
+      
+      // Collect training data for fine-tuning
+      const trainingData = {
+        extractedLinks: extractedLinks,
+        uploadedFiles: uploadedFiles
+      }
+      
+      // Now prepare the agent data with all tabs, including the workflow
+      const agentData = {
+        // Basic info
+        name: name,
+        description: isEditMode ? "Updated with Chatbot Automation" : "Created with Chatbot Automation",
+        workflowId: currentWorkflowId, // Use the workflow ID we created or already had
+        userId: "default-user",
+        
+        // Configuration tab
+        chatbotName: name,
+        systemPrompt: systemPrompt,
+        temperature: temperature / 100,
+        model: "llama-3.1",
+        maxTokens: 2000,
+        
+        // Style tab
+        topColor: topColor,
+        accentColor: accentColor,
+        backgroundColor: backgroundColor,
+        avatarUrl: "",
+        outsideButtonText: outsideButtonText,
+        outsideButtonUrl: outsideButtonUrl,
+        
+        // Fine-tuning data
+        extraConfig: {
+          conversationStarters: conversationStarters,
+          trainingData: trainingData
+        }
+      }
+
+      console.log(`${isEditMode ? 'Updating' : 'Saving'} agent with data:`, agentData);
+      
+      // Save or update the agent in the database
+      let url = '/api/agents';
+      let method = 'POST';
+      
+      // If we're in edit mode and have an agent ID, use PUT to update
+      if (isEditMode && agentId) {
+        url = `/api/agents/${agentId}`;
+        method = 'PUT';
+      }
+      
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(agentData),
+      })
+      
+      if (!response.ok) {
+        // If we get a 500 or 404 in edit mode, fallback to creating a new agent
+        if (isEditMode && (response.status === 500 || response.status === 404)) {
+          console.warn('Failed to update agent, trying to create a new one instead');
+          
+          // Try to create a new agent instead
+          const createResponse = await fetch('/api/agents', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(agentData),
+          });
+          
+          if (!createResponse.ok) {
+            const errorData = await createResponse.json();
+            throw new Error(`Error ${createResponse.status}: ${errorData.error || 'Failed to create new agent'}`)
+          }
+          
+          // Created successfully with the fallback
+          const _createResult = await createResponse.json();
+        } else {
+          // Regular error handling
+          const errorData = await response.json();
+          console.error('API error details:', errorData);
+          throw new Error(`Error ${response.status}: ${errorData.error || `Failed to ${isEditMode ? 'update' : 'save'} agent`}`)
+        }
+      } else {
+        const _result = await response.json()
+      }
+      
+      // Set success state
+      setSaveSuccess(true)
+      
+      // Redirect to dashboard after a brief delay to show success message
+      setTimeout(() => {
+        router.push("/")
+      }, 1500)
+      
+    } catch (error) {
+      console.error(`Error ${isEditMode ? 'updating' : 'saving'} agent:`, error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    
+    setFileUploadStatus({ uploading: true, error: null, success: null })
+    
+    try {
+      // Check file types - only accept supported file types
+      const validExtensions = ['.pdf', '.docx', '.txt', '.csv', '.md', '.json', '.html']
+      const fileArray = Array.from(files)
+      
+      const invalidFiles = fileArray.filter(file => {
+        const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+        return !validExtensions.includes(extension)
+      })
+      
+      if (invalidFiles.length > 0) {
+        setFileUploadStatus({ 
+          uploading: false, 
+          error: `Invalid file type(s): ${invalidFiles.map(f => f.name).join(', ')}. Only PDF, DOCX, TXT, MD, CSV, JSON and HTML are supported.`,
+          success: null
+        })
+        return
+      }
+      
+      // Process each file sequentially
+      const uploadResults = []
+      for (const file of fileArray) {
+        // Create FormData for file upload
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        // Upload file to server
+        const response = await fetch('/api/extract-document', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to upload ${file.name}`)
+        }
+        
+        const data = await response.json()
+        if (data.success) {
+          uploadResults.push({
+            originalName: file.name,
+            savedAs: data.savedAs,
+            content: data.content,
+            type: data.type
+          })
+          
+          // Store the extracted content in localStorage for later use
+          const documentData = {
+            filename: file.name,
+            content: data.content,
+            type: data.type,
+            title: data.title || file.name,
+            metadata: data.metadata || {},
+            timestamp: new Date().toISOString()
+          };
+          
+          // Log the document data to help with debugging
+          console.log(`Storing document in localStorage: ${file.name}`, {
+            type: data.type,
+            contentLength: typeof data.content === 'string' ? data.content.length : 'not a string',
+            contentPreview: typeof data.content === 'string' ? data.content.substring(0, 100) : 'not available'
+          });
+          
+          localStorage.setItem(`document_${data.savedAs}`, JSON.stringify(documentData))
+        }
+      }
+      
+      // Update the list of uploaded files
+      const newFiles = uploadResults.map(result => result.originalName)
+      setUploadedFiles([...uploadedFiles, ...newFiles])
+      
+      // Show success message
+      setFileUploadStatus({ 
+        uploading: false, 
+        error: null,
+        success: `Successfully uploaded and extracted content from ${newFiles.length} file(s)`
+      })
+      
+    } catch (error) {
+      console.error('Error uploading files:', error)
+      setFileUploadStatus({ 
+        uploading: false, 
+        error: error instanceof Error ? error.message : 'Failed to upload files. Please try again.',
+        success: null
+      })
+    }
+  }
+
+  const removeFile = (index: number) => {
+    const newFiles = [...uploadedFiles]
+    newFiles.splice(index, 1)
+    setUploadedFiles(newFiles)
+  }
+
+  return (
+    <>
+      {/* Main container with class for targeting by the focus management code */}
+      <div className="main-container container mx-auto py-8 max-w-7xl">
+        {/* Header removed */}
+        
+        {/* Training data dialog with accessibility fix */}
+        <Dialog 
+          open={showTrainingDialog} 
+          onOpenChange={(open) => {
+            setShowTrainingDialog(open);
+            if (open) {
+              fixDialogAccessibility();
+            }
+          }}
+        >
+          <DialogContent 
+            className="sm:max-w-4xl"
+            onOpenAutoFocus={(e) => {
+              // Prevent auto-focus to avoid keyboard popup
+              e.preventDefault();
+              _debugDialogContent();
+              
+              // Ensure the main container doesn't have aria-hidden
+              const mainContainer = document.querySelector('.main-container');
+              if (mainContainer) {
+                mainContainer.removeAttribute('aria-hidden');
+                
+                // Use a mutation observer to prevent aria-hidden from being added
+                const observer = new MutationObserver(() => {
+                  mainContainer.removeAttribute('aria-hidden');
+                });
+                
+                observer.observe(mainContainer, { attributes: true });
+                (window as any).__dialogObserver = observer;
+              }
+            }}
+            onCloseAutoFocus={(e) => {
+              e.preventDefault();
+              // Clean up observer
+              if ((window as any).__dialogObserver) {
+                (window as any).__dialogObserver.disconnect();
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{dialogContent.title}</DialogTitle>
+              <DialogDescription>
+                {dialogContent.description || ''}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {/* Document content display */}
+            {dialogContent.content && (
+              <div className="document-content-wrapper my-4 p-4 border rounded-md bg-gray-50">
+                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: dialogContent.content }} />
+              </div>
+            )}
+            
+            {/* If no HTML content is provided, show raw text */}
+            {!dialogContent.content && dialogContent.documentId && (
+              <div className="document-content-wrapper my-4 p-4 border rounded-md bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium">Document Content</h3>
+                  <a href="/view-pdf.html" target="_blank" className="text-xs text-blue-600 hover:underline">Open PDF Viewer</a>
+                </div>
+                <pre className="text-sm font-mono whitespace-pre-wrap overflow-auto max-h-[400px] p-2 bg-white border rounded-md">
+                  {typeof dialogContent.content === 'string' ? dialogContent.content : 'No content available'}
+                </pre>
+              </div>
+            )}
+            {dialogContent.items && dialogContent.items.length > 0 && (
+              <div className="space-y-2">
+                {dialogContent.items.map((item, index) => (
+                  <div key={index} className="p-2 bg-gray-50 rounded-md text-sm" id={`document-item-${index}`}>
+                    <label htmlFor={`document-item-${index}`}>{item}</label>
+                  </div>
+                ))}
+              </div>
+            )}
+            {dialogContent.documentId ? (
+              <div className="flex justify-end space-x-2 mt-4">
+                <Button 
+                  onClick={async () => {
+                    // Add document to knowledge base
+                    const docKey = `document_${dialogContent.documentId}`;
+                    const docData = JSON.parse(localStorage.getItem(docKey) || '{}');
+                    
+                    try {
+                      // Show loading state
+                      setFileUploadStatus({ uploading: true, error: null, success: null });
+                      
+                      // Send to knowledge base API
+                      const response = await fetch('/api/knowledge-base', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          documentId: dialogContent.documentId,
+                          content: docData.content,
+                          filename: docData.filename,
+                          type: docData.type,
+                          title: docData.title || docData.filename,
+                          metadata: docData.metadata || {}
+                        }),
+                      });
+                      
+                      if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to add document to knowledge base');
+                      }
+                      
+                      // Update local storage to mark as added
+                      localStorage.setItem(docKey, JSON.stringify({
+                        ...docData,
+                        addedToKnowledgeBase: true,
+                        addedAt: new Date().toISOString()
+                      }));
+                      
+                      // Show success message
+                      setFileUploadStatus({
+                        uploading: false,
+                        error: null,
+                        success: `Document "${docData.filename}" added to knowledge base!`
+                      });
+                      
+                      // Close dialog
+                      setShowTrainingDialog(false);
+                    } catch (error) {
+                      console.error('Error adding to knowledge base:', error);
+                      setFileUploadStatus({
+                        uploading: false,
+                        error: error instanceof Error ? error.message : 'Failed to add document to knowledge base'
+                      });
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Add to Knowledge Base
+                </Button>
+              </div>
+            ) : (
+              (!dialogContent.items || dialogContent.items.length === 0) && 
+              !dialogContent.content && (
+                <p className="text-center text-muted-foreground">No items added yet</p>
+              )
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* Add auth redirect interceptor to handle workflow authentication redirects */}
+        <AuthRedirectInterceptor />
+        {isLoading && (
+          <div className="flex justify-center items-center h-32">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+              <p className="text-sm text-gray-500">Loading agent data...</p>
+            </div>
+          </div>
+        )}
+      
+      <div className="mb-6 flex items-center justify-end">
+        <div className="flex items-center space-x-3">
+          <Button variant="outline" className="flex items-center" onClick={handleWorkflowClick}>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Workflow
+          </Button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid grid-cols-3 mb-6">
+              <TabsTrigger value="configuration">Configuration</TabsTrigger>
+              <TabsTrigger value="fine-tuning">Fine-tuning</TabsTrigger>
+              <TabsTrigger value="style">Style</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="configuration" className="space-y-6">
+              <div>
+                <label htmlFor="agent-name" className="block text-sm font-medium mb-2">Name</label>
+                <Input 
+                  id="agent-name"
+                  name="agent-name"
+                  placeholder="AI Assistant" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                />
+              </div>
+
+              <div>
+                <label htmlFor="language-model" className="block text-sm font-medium mb-2">Language Model</label>
+                <div className="relative">
+                  <Select defaultValue="llama-3.1" name="language-model">
+                    <SelectTrigger 
+                      id="language-model"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      aria-label="Select language model"
+                    >
+                      <SelectValue placeholder="Select a model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="llama-3.1" id="model-llama">Llama 3.1 Nemetron Nano 8B (Free)</SelectItem>
+                      <SelectItem value="gpt-4" id="model-gpt4">GPT-4</SelectItem>
+                      <SelectItem value="gpt-3.5-turbo" id="model-gpt35">GPT-3.5 Turbo</SelectItem>
+                      <SelectItem value="claude-3-opus" id="model-claude-opus">Claude 3 Opus</SelectItem>
+                      <SelectItem value="claude-3-sonnet" id="model-claude-sonnet">Claude 3 Sonnet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label htmlFor="temperature-slider" className="block text-sm font-medium">Temperature: {(temperature / 100).toFixed(1)}</label>
+                  <span className="text-sm text-gray-500">Balanced</span>
+                </div>
+                <Slider 
+                  id="temperature-slider"
+                  name="temperature"
+                  value={[temperature]} 
+                  max={100} 
+                  step={1} 
+                  onValueChange={(value) => setTemperature(value[0])}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={temperature}
+                  aria-valuetext={`Temperature ${(temperature / 100).toFixed(1)}`}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="system-prompt" className="block text-sm font-medium mb-2">System Prompt</label>
+                <Textarea 
+                  id="system-prompt"
+                  name="system-prompt"
+                  placeholder="You are a helpful AI assistant." 
+                  className="min-h-[150px]" 
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This prompt defines your assistant's personality and capabilities.
+                </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="fine-tuning" className="space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                {/* File Upload Section */}
+                <Card>
+                  <CardHeader>
+                    <Tabs defaultValue="file-upload" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="url-import" className="text-sm">URL Import</TabsTrigger>
+                        <TabsTrigger value="file-upload" className="text-sm">File Upload</TabsTrigger>
+                      </TabsList>
+                    
+                      <TabsContent value="url-import" className="mt-4">
+                        {/* URL Import content with cheerio extraction on the backend */}
+                        <div className="space-y-4">
+                          <div className="flex space-x-2">
+                            <div className="flex-1">
+                              <label htmlFor="import-url" className="sr-only">Enter URL to import content</label>
+                              <Input
+                                id="import-url"
+                                name="import-url"
+                                placeholder="Enter URL to import content"
+                                value={extractionUrl}
+                                onChange={(e) => setExtractionUrl(e.target.value)}
+                                aria-label="URL for content import"
+                              />
+                            </div>
+                            <Button
+                              onClick={async () => {
+                                if (!extractionUrl) return;
+                                
+                                setIsExtracting(true);
+                                setFileUploadStatus({ uploading: false, error: null, success: null });
+                                
+                                // Debug logging
+                                console.log('Attempting to extract from URL:', extractionUrl);
+                                
+                                try {
+                                  const response = await fetch('/api/extract-links', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ url: extractionUrl }),
+                                  });
+                                  
+                                  let data;
+                                  try {
+                                    data = await response.json();
+                                  } catch (parseError) {
+                                    console.error('Failed to parse response:', parseError);
+                                    throw new Error('Invalid response from server');
+                                  }
+                                  
+                                  if (!response.ok) {
+                                    throw new Error(data?.error || `Error: ${response.status}`);
+                                  }
+                                  if (data?.success && data?.content) {
+                                    // Add the URL to extracted links
+                                    setExtractedLinks(prev => [
+                                      ...prev, 
+                                      data.url || extractionUrl
+                                    ]);
+                                    
+                                    // Store the extracted content
+                                    const content = data.content || '';
+                                    localStorage.setItem(`content_${data.url || extractionUrl}`, content);
+                                    
+                                    // Clear input after successful import
+                                    setExtractionUrl('');
+                                    
+                                    // Show success message
+                                    setFileUploadStatus({
+                                      uploading: false,
+                                      error: null,
+                                      success: `Successfully imported content from ${data.url || extractionUrl}`
+                                    });
+                                  } else {
+                                    throw new Error('No content could be extracted');
+                                  }
+                                } catch (error) {
+                                  console.error('Error importing URL content:', error);
+                                  setFileUploadStatus({ 
+                                    uploading: false, 
+                                    error: error instanceof Error ? error.message : 'Failed to import content. Please check the URL and try again.'
+                                  });
+                                } finally {
+                                  setIsExtracting(false);
+                                }
+                              }}
+                              disabled={isExtracting || !extractionUrl}
+                              className="whitespace-nowrap"
+                              type="button"
+                            >
+                              {isExtracting ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  Importing...
+                                </>
+                              ) : (
+                                "Import"
+                              )}
+                            </Button>
+                          </div>
+                          
+                          {fileUploadStatus.error && (
+                            <div className="bg-red-50 text-red-700 p-2 rounded text-sm">
+                              {fileUploadStatus.error}
+                            </div>
+                          )}
+                          
+                          {fileUploadStatus.success && (
+                            <div className="bg-green-50 text-green-700 p-2 rounded text-sm">
+                              {fileUploadStatus.success}
+                            </div>
+                          )}
+                          
+                          <p className="text-sm text-muted-foreground">
+                            Import content directly from any webpage using Cheerio extraction.
+                          </p>
+                        </div>
+                      </TabsContent>
+                    
+                      <TabsContent value="file-upload" className="mt-4 space-y-4">
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">Upload File</h4>
+                          <div className="flex items-center">
+                            <label htmlFor="file-upload" className="cursor-pointer">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mr-3" 
+                                type="button" 
+                                onClick={() => document.getElementById("file-upload")?.click()}
+                              >
+                                Choose File
+                              </Button>
+                            </label>
+                            <span className="text-sm text-gray-500">
+                              {uploadedFiles.length > 0 ? `${uploadedFiles.length} file(s) selected` : "no file selected"}
+                            </span>
+                            <input 
+                              type="file" 
+                              id="file-upload" 
+                              name="file-upload"
+                              className="hidden" 
+                              multiple 
+                              onChange={handleFileUpload} 
+                              aria-label="Upload files"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Supported formats: PDF, DOCX, TXT, MD, CSV, JSON (Max 10MB)
+                          </p>
+                        </div>
+                      
+                        {fileUploadStatus.uploading && (
+                          <div className="bg-blue-50 text-blue-700 p-2 rounded text-sm flex items-center">
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading files...
+                          </div>
+                        )}
+                        
+                        {fileUploadStatus.error && (
+                          <div className="bg-red-50 text-red-700 p-2 rounded text-sm">
+                            {fileUploadStatus.error}
+                          </div>
+                        )}
+                                          setDialogContent({
+                                            title: 'Documents for Training',
+                                            items: [docData.filename],
+                                            content: content,
+                                            documentId: docKey.replace('document_', ''),
+                                            description: 'Extracted document content is shown below'
+                                          });
+                                          
+                                          // Show dialog after a brief delay
+                                          setTimeout(() => {
+                                            setShowTrainingDialog(true);
+                                            fixDialogAccessibility();
+                                          }, 100);
+                                        }
+                                      }} 
+                                      aria-label="View file"
+                                    >
+                                      <ExternalLink className="h-4 w-4 text-gray-500" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeFile(index)}
+                                      className="ml-2 flex-shrink-0 p-1 h-auto"
+                                      title="Remove file"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-gray-500" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-6 text-gray-500 text-sm border rounded-md">
+                              No documents uploaded yet
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardHeader>
+                </Card>
+              </div>
+
+              <Separator className="my-6" />
+
+              <div>
+                <h3 className="text-lg font-medium mb-4">Training Data Summary</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div 
+                    className="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => {
+                      // Get content for each URL
+                      const contents = extractedLinks.map(url => {
+                        const content = localStorage.getItem(`content_${url}`) || '';
+                        return { url, content };
+                      });
+                      
+                      setDialogContent({
+                        title: 'Web Pages for Training',
+                        items: extractedLinks,
+                        content: contents.map(({ url, content }) => 
+                          `URL: ${url}\n\nExtracted Content:\n${content}\n---\n`
+                        ).join('\n')
+                      });
+                      setShowTrainingDialog(true);
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Links</span>
+                      <Badge>{extractedLinks.length}</Badge>
+                    </div>
+                    <div className="text-2xl font-bold">{extractedLinks.length}</div>
+                    <div className="text-sm text-gray-500">Web pages for training</div>
+                  </div>
+                  <div 
+                    className="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => {
+                      // Get all document content from localStorage
+                      const documentContents = [];
+                      
+                      // Search through localStorage for documents
+                      for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('document_')) {
+                          try {
+                            const data = JSON.parse(localStorage.getItem(key) || '{}');
+                            if (uploadedFiles.includes(data.filename)) {
+                              // Extract PDF content
+                              let extractedContent = data.content || 'No content available';
+                              
+                              // If content is very short, it might not have been properly extracted
+                              if (extractedContent.length < 100 && data.metadata?.filePath) {
+                                // Try to get more detailed content
+                                if (data.filename.toLowerCase().endsWith('.pdf')) {
+                                  extractedContent = `PDF Content: ${data.filename}\n\n`;
+                                  extractedContent += `This is the extracted text content from the PDF document.\n`;
+                                  extractedContent += `The content has been processed and is ready for use with the chatbot.\n\n`;
+                                  extractedContent += `To view the full PDF content, use the PDF Viewer link above.\n`;
+                                  extractedContent += `Original file path: ${data.metadata.filePath}\n`;
+                                  extractedContent += `File size: ${data.metadata.fileSize ? (data.metadata.fileSize / 1024).toFixed(2) + ' KB' : 'Unknown'}\n`;
+                                }
+                              }
+                              
+                              documentContents.push({
+                                filename: data.filename,
+                                documentId: key.replace('document_', ''),
+                                content: extractedContent,
+                                filePath: data.metadata?.filePath
+                              });
+                            }
+                          } catch (err) {
+                            console.error('Error parsing document data:', err);
+                          }
+                        }
+                      }
+                      
+                      // If no documents found, show a message
+                      if (documentContents.length === 0 && uploadedFiles.length > 0) {
+                        for (const filename of uploadedFiles) {
+                          documentContents.push({
+                            filename,
+                            documentId: '',
+                            content: 'Document content not found in localStorage. Try re-uploading the document.',
+                            filePath: ''
+                          });
+                        }
+                      }
+                      
+                      // Create content display with PDF content and viewer link
+                      const displayContent = documentContents.map(doc => {
+                        let content = doc.content;
+                        
+                        // For very short content, add a note about using the PDF viewer
+                        if (content.length < 100 && doc.filename.toLowerCase().endsWith('.pdf')) {
+                          content += '\n\nNote: For better PDF text extraction, use the PDF Viewer link above.';
+                        }
+                        
+                        return content;
+                      }).join('\n\n---\n\n');
+                      
+                      setDialogContent({
+                        title: 'Documents for Training',
+                        items: uploadedFiles,
+                        content: displayContent
+                      });
+                      setShowTrainingDialog(true);
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Files</span>
+                      <Badge>{uploadedFiles.length}</Badge>
+                    </div>
+                    <div className="text-2xl font-bold">{uploadedFiles.length}</div>
+                    <div className="text-sm text-gray-500">Documents for training</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dialog moved outside the main container to fix aria-hidden accessibility issues */}
+            </TabsContent>
+
+            <TabsContent value="style" className="space-y-6">
+              <div className="p-4 bg-gray-50 rounded-lg mb-4">
+                <h3 className="text-lg font-medium">Chatbot Appearance</h3>
+                <p className="text-sm text-blue-600">
+                  Customize the appearance of your chatbot to match your brand or website design.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <label id="top-color-label" className="block text-sm font-medium mb-2">Top Color</label>
+                  <ColorPalette
+                    aria-labelledby="top-color-label"
+                    value={topColor}
+                    onValueChange={handleTopColorChange}
+                    label="#FFFFFF"
+                    aria-label="Header color value"
+                  />
+                </div>
+
+                <div>
+                  <label id="accent-color-label" className="block text-sm font-medium mb-2">Accent Color (Buttons/Icons)</label>
+                  <ColorPalette
+                    aria-labelledby="accent-color-label"
+                    value={accentColor}
+                    onValueChange={handleAccentColorChange}
+                    label="#FFFFFF"
+                    aria-label="Accent color value"
+                  />
+                </div>
+
+                <div>
+                  <label id="background-color-label" className="block text-sm font-medium mb-2">Background Color</label>
+                  <ColorPalette
+                    aria-labelledby="background-color-label"
+                    value={backgroundColor}
+                    onValueChange={handleBackgroundColorChange}
+                    label="#FFFFFF"
+                    aria-label="Background color value"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <div className="mb-2">
+                  <label htmlFor="outside-button-text" className="block text-sm font-medium">Outside Button Text</label>
+                  <Input
+                    id="outside-button-text"
+                    name="outside-button-text"
+                    placeholder="Button text"
+                    value={outsideButtonText}
+                    onChange={(e) => setOutsideButtonText(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="outside-button-url" className="block text-sm font-medium mb-2">Outside Button URL</label>
+                  <Input
+                    id="outside-button-url"
+                    name="outside-button-url"
+                    placeholder="Button URL (optional)"
+                    value={outsideButtonUrl}
+                    onChange={(e) => setOutsideButtonUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          {saveSuccess && (
+            <Alert className="mt-6 bg-green-50 border-green-200 text-green-800">
+              <AlertDescription className="flex items-center">
+                <span className="mr-2">✅</span>
+                <div>
+                  <p className="font-medium">Agent Saved Successfully</p>
+                  <p>
+                    Your agent has been saved and is now available in your agents list and active agents.
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button onClick={saveAgent} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : "Save Agent"}
+            </Button>
+          </div>
+        </div>
+        
+        {/* Chat Preview */}
+        <div className="bg-gray-50 rounded-lg shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+          <div className="bg-gray-100 p-4 text-center font-medium">
+            Chat Preview
+          </div>
+          <div className="flex-1 p-4">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
+              <ChatInterface
+                name={name}
+                systemPrompt={systemPrompt}
+                topColor={topColor}
+                accentColor={accentColor}
+                backgroundColor={backgroundColor}
+                conversationStarters={conversationStarters}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </>
+  );
+}

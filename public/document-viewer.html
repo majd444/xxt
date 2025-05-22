@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Content Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        pre {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 15px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+        }
+        .info {
+            background-color: #f3f4f6;
+            border-left: 4px solid #3b82f6;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        .text-content {
+            max-height: 600px;
+            overflow: auto;
+        }
+        .meta {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        .container {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Document Content Viewer</h1>
+    
+    <div class="info">
+        <p>This page displays the content of documents stored in localStorage. Select a document to view its content.</p>
+    </div>
+    
+    <div>
+        <label for="documentSelect">Select a document:</label>
+        <select id="documentSelect" onchange="loadDocument()">
+            <option value="">-- Select a document --</option>
+        </select>
+        <button onclick="refreshDocuments()">Refresh List</button>
+    </div>
+    
+    <div id="documentContainer" class="container" style="display: none;">
+        <h2 id="documentTitle"></h2>
+        <div class="meta">
+            <div id="documentInfo"></div>
+            <div id="contentLength"></div>
+        </div>
+        <div class="text-content">
+            <pre id="documentContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Load documents from localStorage when page loads
+        window.onload = function() {
+            refreshDocuments();
+        };
+        
+        // Refresh the document list
+        function refreshDocuments() {
+            const select = document.getElementById('documentSelect');
+            // Clear existing options
+            select.innerHTML = '<option value="">-- Select a document --</option>';
+            
+            // Get all document keys from localStorage
+            const documentKeys = Object.keys(localStorage).filter(key => key.startsWith('document_'));
+            
+            if (documentKeys.length === 0) {
+                const option = document.createElement('option');
+                option.text = 'No documents found';
+                option.disabled = true;
+                select.add(option);
+                return;
+            }
+            
+            // Add each document to the select dropdown
+            documentKeys.forEach(key => {
+                try {
+                    const docData = JSON.parse(localStorage.getItem(key));
+                    if (docData && docData.filename) {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.text = docData.filename || 'Unnamed document';
+                        select.add(option);
+                    }
+                } catch (error) {
+                    console.error('Error parsing document:', error);
+                }
+            });
+        }
+        
+        // Load the selected document
+        function loadDocument() {
+            const select = document.getElementById('documentSelect');
+            const key = select.value;
+            
+            if (!key) {
+                document.getElementById('documentContainer').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const docData = JSON.parse(localStorage.getItem(key));
+                if (!docData) {
+                    alert('Document not found or corrupted');
+                    return;
+                }
+                
+                // Update the UI with document info
+                document.getElementById('documentTitle').textContent = docData.filename || 'Unnamed document';
+                
+                const content = typeof docData.content === 'string' 
+                    ? docData.content 
+                    : JSON.stringify(docData.content, null, 2);
+                
+                document.getElementById('documentContent').textContent = content;
+                document.getElementById('contentLength').textContent = `Content length: ${content.length} characters`;
+                document.getElementById('documentInfo').textContent = `Type: ${docData.type || 'Unknown'}`;
+                document.getElementById('documentContainer').style.display = 'block';
+                
+                console.log('Loaded document:', {
+                    filename: docData.filename,
+                    type: docData.type,
+                    contentLength: content.length,
+                    content: content.substring(0, 500) + (content.length > 500 ? '...' : '')
+                });
+                
+            } catch (error) {
+                console.error('Error displaying document:', error);
+                alert('Error displaying document');
+            }
+        }
+    </script>
+</body>
+</html>

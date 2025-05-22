@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Content Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #2563eb;
+        }
+        pre {
+            background-color: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            overflow: auto;
+            border: 1px solid #e5e7eb;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .document-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .document-meta {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            min-width: 300px;
+        }
+        .content-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background-color: #f9fafb;
+        }
+        .document-info {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+        }
+        .toolbar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Document Content Viewer</h1>
+        <p>This tool allows you to view the content of documents stored in your browser's local storage.</p>
+        
+        <div class="toolbar">
+            <select id="documentSelect">
+                <option value="">-- Select a document --</option>
+            </select>
+            <button onclick="loadDocument()">View Document</button>
+            <button class="btn-secondary" onclick="refreshList()">Refresh List</button>
+        </div>
+        
+        <div id="documentInfo" class="document-info" style="display:none;"></div>
+    </div>
+    
+    <div id="contentContainer" class="container" style="display:none;">
+        <div class="document-header">
+            <div>
+                <h2 id="documentTitle">Document Content</h2>
+                <div id="documentMeta" class="document-meta"></div>
+            </div>
+            <div>
+                <button id="toggleViewBtn" onclick="toggleView()">Show Raw Content</button>
+            </div>
+        </div>
+        
+        <div id="contentWrapper" class="content-container"></div>
+    </div>
+
+    <script>
+        // State variables
+        let currentContent = '';
+        let isFormattedView = true;
+        let currentDocData = null;
+        
+        // Initialize on page load
+        window.onload = function() {
+            refreshList();
+        };
+        
+        // Refresh document list
+        function refreshList() {
+            const select = document.getElementById('documentSelect');
+            select.innerHTML = '<option value="">-- Select a document --</option>';
+            
+            // Find documents in localStorage
+            const docKeys = Object.keys(localStorage).filter(key => key.startsWith('document_'));
+            
+            if (docKeys.length === 0) {
+                const option = document.createElement('option');
+                option.text = 'No documents found';
+                option.disabled = true;
+                select.add(option);
+                document.getElementById('documentInfo').textContent = 'No documents found in local storage.';
+                document.getElementById('documentInfo').style.display = 'block';
+                return;
+            }
+            
+            // Sort alphabetically by filename
+            docKeys.sort((a, b) => {
+                const docA = JSON.parse(localStorage.getItem(a) || '{}');
+                const docB = JSON.parse(localStorage.getItem(b) || '{}');
+                return (docA.filename || '').localeCompare(docB.filename || '');
+            });
+            
+            // Add each document to dropdown
+            docKeys.forEach(key => {
+                try {
+                    const docData = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (docData && docData.filename) {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.text = docData.filename;
+                        select.add(option);
+                    }
+                } catch (error) {
+                    console.error('Error parsing document:', error);
+                }
+            });
+            
+            document.getElementById('documentInfo').textContent = `Found ${docKeys.length} documents in local storage.`;
+            document.getElementById('documentInfo').style.display = 'block';
+        }
+        
+        // Load and display document
+        function loadDocument() {
+            const select = document.getElementById('documentSelect');
+            const key = select.value;
+            
+            if (!key) {
+                alert('Please select a document first');
+                return;
+            }
+            
+            try {
+                // Get document from localStorage
+                const docData = JSON.parse(localStorage.getItem(key) || '{}');
+                currentDocData = docData;
+                
+                if (!docData || !docData.filename) {
+                    alert('Invalid document data');
+                    return;
+                }
+                
+                // Extract the content
+                currentContent = typeof docData.content === 'string' 
+                    ? docData.content 
+                    : JSON.stringify(docData.content, null, 2);
+                
+                // Update UI
+                document.getElementById('documentTitle').textContent = docData.filename || 'Document';
+                document.getElementById('documentMeta').textContent = 
+                    `Type: ${docData.type || 'Unknown'} · Size: ${currentContent.length} characters`;
+                
+                // Display content in formatted view by default
+                isFormattedView = true;
+                document.getElementById('toggleViewBtn').textContent = 'Show Raw Content';
+                displayFormattedContent();
+                
+                // Show the content container
+                document.getElementById('contentContainer').style.display = 'block';
+                
+                console.log('Document loaded:', {
+                    filename: docData.filename,
+                    type: docData.type,
+                    contentLength: currentContent.length
+                });
+            } catch (error) {
+                console.error('Error loading document:', error);
+                alert('Error loading document: ' + error.message);
+            }
+        }
+        
+        // Toggle between formatted and raw views
+        function toggleView() {
+            isFormattedView = !isFormattedView;
+            document.getElementById('toggleViewBtn').textContent = 
+                isFormattedView ? 'Show Raw Content' : 'Show Formatted Content';
+            
+            if (isFormattedView) {
+                displayFormattedContent();
+            } else {
+                displayRawContent();
+            }
+        }
+        
+        // Display formatted content
+        function displayFormattedContent() {
+            const container = document.getElementById('contentWrapper');
+            
+            // Basic markdown-style formatting
+            if (currentContent && currentContent.includes('#')) {
+                // Format as markdown
+                const lines = currentContent.split('\n');
+                let html = '';
+                
+                lines.forEach(line => {
+                    if (line.startsWith('# ')) {
+                        html += `<h1>${line.substring(2)}</h1>`;
+                    } else if (line.startsWith('## ')) {
+                        html += `<h2>${line.substring(3)}</h2>`;
+                    } else if (line.startsWith('### ')) {
+                        html += `<h3>${line.substring(4)}</h3>`;
+                    } else if (line.trim() === '') {
+                        html += '<br>';
+                    } else {
+                        html += `<p>${line}</p>`;
+                    }
+                });
+                
+                container.innerHTML = html;
+            } else {
+                // No markdown, display as paragraphs
+                const paragraphs = currentContent.split('\n\n');
+                const html = paragraphs.map(p => `<p>${p}</p>`).join('');
+                container.innerHTML = html || '<p class="text-gray-500">No content available</p>';
+            }
+        }
+        
+        // Display raw content
+        function displayRawContent() {
+            const container = document.getElementById('contentWrapper');
+            container.innerHTML = `<pre>${escapeHtml(currentContent)}</pre>`;
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
