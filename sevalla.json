@@ -1,6 +1,6 @@
 {
   "build": {
-    "command": "npm run static-build",
+    "command": "mkdir -p out && cp -r public/* out/",
     "publish": "out",
     "node_version": "18"
   },
