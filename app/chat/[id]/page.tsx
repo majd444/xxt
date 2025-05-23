@@ -1,6 +1,6 @@
 "use client"
 
-import { useChat } from "@/lib/services/mock-ai-sdk"
+import { useChat } from "@/components/ui/mock-chat-hook"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"

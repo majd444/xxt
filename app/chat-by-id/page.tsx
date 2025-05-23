@@ -1,6 +1,6 @@
 "use client"
 
-import { useChat } from "@/lib/services/mock-ai-sdk"
+import { useChat } from "@/components/ui/mock-chat-hook"
 import { useSearchParams } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
