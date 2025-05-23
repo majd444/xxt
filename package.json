@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/react": "./lib/mocks/ai-sdk-react",
+    "@ai-sdk/openai": "./lib/mocks/ai-sdk-openai",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/client": "^6.7.0",
     "@radix-ui/react-accordion": "1.2.2",
