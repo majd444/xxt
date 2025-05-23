@@ -1,0 +1,12 @@
+{
+  "build": {
+    "command": "npm run static-build",
+    "publish": "out",
+    "node_version": "18"
+  },
+  "environment": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "DATABASE_URL": "${DATABASE_URL}"
+  }
+}

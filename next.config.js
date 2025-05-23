@@ -1,9 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
-  // This ensures proper static file serving in production
-  distDir: '.next',
+  // Configure for static site export
+  output: 'export',
+  // Disable image optimization since it's not supported in export mode
+  images: { unoptimized: true },
+  // Disable server actions for static export
+  experimental: {
+    serverActions: false,
+  },
+  // Static site doesn't support dynamic redirects but we can keep the permanent ones
   async redirects() {
     return [
       {
@@ -11,19 +17,10 @@ const nextConfig = {
         destination: '/new-agent',
         permanent: true,
       },
-      // Add a redirect from the root to the deployment success page for easier verification
-      {
-        source: '/',
-        destination: '/deployment-success.html',
-        permanent: false,
-      },
     ]
   },
-  // Enable static optimization where possible
-  experimental: {
-    optimizeCss: true,
-    optimizeServerReact: true,
-  },
+  // This helps with GitHub Pages and other static hosts
+  trailingSlash: true,
 }
 
 module.exports = nextConfig
