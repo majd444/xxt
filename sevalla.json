@@ -1,7 +1,7 @@
 {
   "build": {
-    "command": "mkdir -p out && cp -r public/* out/",
-    "publish": "out",
+    "command": "npm run build",
+    "publish": ".next",
     "node_version": "18"
   },
   "environment": {

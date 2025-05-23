@@ -4,9 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "mkdir -p out && cp -r public/* out/",
-    "export": "echo 'Export not needed'",
-    "static-build": "mkdir -p out && cp -r public/* out/",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
