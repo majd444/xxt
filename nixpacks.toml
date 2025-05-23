@@ -2,10 +2,10 @@
 nixPkgs = ['nodejs', 'npm', 'gcc']
 
 [phases.install]
-cmds = ['npm install']
+cmds = ['npm install --legacy-peer-deps']
 
 [phases.build]
-cmds = ['npm run build']
+cmds = ['npm run build --legacy-peer-deps']
 
 [start]
 cmd = 'npm start'
