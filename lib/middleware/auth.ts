@@ -63,7 +63,7 @@ function _securelyGetJwtSecret(): string {
 
 // Types
 export interface UserJwtPayload {
-  id: number;
+  id: string | number; // Allow both string and number IDs for flexibility
   email: string;
   name?: string;
 }
