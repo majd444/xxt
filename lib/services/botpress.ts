@@ -1,73 +1,102 @@
-import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
-// Botpress API configuration
-const BOTPRESS_API_URL = process.env.BOTPRESS_API_URL || 'https://api.botpress.cloud';
-const BOTPRESS_API_TOKEN = process.env.BOTPRESS_API_TOKEN;
+// Mock Botpress Service (No SDK Required)
+// This is a simplified implementation that doesn't require the Botpress SDK
 
-// Botpress API configuration
-
-// Create Botpress API client
-const botpressClient = axios.create({
-  baseURL: BOTPRESS_API_URL,
-  headers: {
-    'Authorization': `Bearer ${BOTPRESS_API_TOKEN}`,
-    'Content-Type': 'application/json'
-  }
-});
+// In-memory storage for conversations and messages (for demo/development only)
+const conversations = new Map<string, any>();
+const messages = new Map<string, any[]>();
 
 /**
- * Create a new conversation in Botpress
+ * Create a new conversation
  * @param userId User identifier
- * @param botId Bot identifier
+ * @param botId Bot identifier (optional in mock implementation)
  * @returns Conversation object
  */
 export async function createConversation(userId: string, botId: string) {
   try {
-    const response = await botpressClient.post('/v1/conversations', {
+    const conversationId = uuidv4();
+    const conversation = {
+      id: conversationId,
       userId,
-      botId
-    });
+      botId: botId || 'default-bot',
+      createdAt: new Date().toISOString()
+    };
     
-    return response.data;
+    conversations.set(conversationId, conversation);
+    messages.set(conversationId, []);
+    
+    return conversation;
   } catch (error) {
-    console.error('Failed to create Botpress conversation:', error);
+    console.error('Failed to create conversation:', error);
     throw error;
   }
 }
 
 /**
- * Send a message to a Botpress conversation
+ * Send a message
  * @param conversationId Conversation identifier
  * @param message Text message to send
- * @returns Response from the bot
+ * @returns Response including bot's reply
  */
 export async function sendMessage(conversationId: string, message: string) {
   try {
-    const response = await botpressClient.post(`/v1/conversations/${conversationId}/messages`, {
-      type: 'text',
-      payload: {
-        text: message
-      }
-    });
+    if (!conversations.has(conversationId)) {
+      throw new Error('Conversation not found');
+    }
+
+    const userMessage = {
+      id: uuidv4(),
+      conversationId,
+      senderId: 'user',
+      text: message,
+      createdAt: new Date().toISOString(),
+      type: 'text'
+    };
     
-    return response.data;
+    // Mock bot response
+    const botMessage = {
+      id: uuidv4(),
+      conversationId,
+      senderId: 'bot',
+      text: `This is a mock response to: "${message}"`,
+      createdAt: new Date().toISOString(),
+      type: 'text'
+    };
+    
+    const conversationMessages = messages.get(conversationId) || [];
+    conversationMessages.push(userMessage, botMessage);
+    messages.set(conversationId, conversationMessages);
+    
+    return {
+      message: botMessage
+    };
   } catch (error) {
-    console.error('Failed to send message to Botpress:', error);
+    console.error('Failed to send message:', error);
     throw error;
   }
 }
 
 /**
- * Get conversation history from Botpress
+ * Get conversation history
  * @param conversationId Conversation identifier
  * @returns Conversation with messages
  */
 export async function getConversation(conversationId: string) {
   try {
-    const response = await botpressClient.get(`/v1/conversations/${conversationId}`);
-    return response.data;
+    const conversation = conversations.get(conversationId);
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+    
+    const conversationMessages = messages.get(conversationId) || [];
+    
+    return {
+      ...conversation,
+      messages: conversationMessages
+    };
   } catch (error) {
-    console.error('Failed to get Botpress conversation:', error);
+    console.error('Failed to get conversation:', error);
     throw error;
   }
 }
@@ -79,10 +108,12 @@ export async function getConversation(conversationId: string) {
  */
 export async function getUserConversations(userId: string) {
   try {
-    const response = await botpressClient.get(`/v1/users/${userId}/conversations`);
-    return response.data;
+    const userConversations = Array.from(conversations.values())
+      .filter(conv => conv.userId === userId);
+    
+    return userConversations;
   } catch (error) {
-    console.error('Failed to get user conversations from Botpress:', error);
+    console.error('Failed to get user conversations:', error);
     throw error;
   }
 }

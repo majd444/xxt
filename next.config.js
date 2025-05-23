@@ -1,14 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Configure for static site export
-  output: 'export',
+  // Configure for standalone deployment
+  output: 'standalone',
   // Disable image optimization since it's not supported in export mode
   images: { unoptimized: true },
-  // Disable server actions for static export
-  experimental: {
-    serverActions: false,
+  // Server configuration
+  experimental: {},
+  serverActions: {
+    bodySizeLimit: '2mb'
   },
+  serverExternalPackages: ['pg', 'mammoth', 'pdf-parse'],
   // Static site doesn't support dynamic redirects but we can keep the permanent ones
   async redirects() {
     return [
