@@ -1,6 +1,6 @@
 "use client"
 
-import { useChat } from "@/components/ui/mock-chat-hook"
+import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
@@ -10,19 +10,52 @@ import { Send, Paperclip, Bot } from "lucide-react"
 
 export default function ChatByIdPage() {
   const searchParams = useSearchParams();
-  const chatId = searchParams.get('id') || 'default';
+  const _chatId = searchParams.get('id') || 'default'; // Keeping for future use if needed
   
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/chat",
-    id: chatId,
-    initialMessages: [
-      {
-        id: "welcome-message",
+  // Self-contained chat implementation
+  const [messages, setMessages] = useState([
+    {
+      id: "welcome-message",
+      role: "assistant",
+      content: "👋 Hi, I'm AI Assistant! How can I help you today?",
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement> | string) => {
+    const value = typeof e === 'string' ? e : e.target.value;
+    setInput(value);
+  };
+
+  const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    
+    if (!input.trim()) return;
+
+    // Add user message
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: input
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    setInput('');
+
+    // Simulate AI response after a delay
+    setTimeout(() => {
+      const assistantMessage = {
+        id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: "👋 Hi, I'm AI Assistant! How can I help you today?",
-      },
-    ],
-  })
+        content: `This is a mock response to: "${input}"`
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      setIsLoading(false);
+    }, 1000);
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
