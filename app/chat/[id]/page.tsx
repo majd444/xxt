@@ -7,10 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Paperclip, Bot } from "lucide-react"
 
-// Using a different approach to avoid TypeScript errors with Next.js 15 params
-export default function ChatPage(
-  { params }: { params: { id: string } }
-) {
+// Define interface for page props to satisfy TypeScript
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+// Fix TypeScript error by properly typing the component props
+export default function ChatPage({ params }: PageProps) {
   const chatId = params?.id || 'default';
   
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({

@@ -5,20 +5,12 @@ const nextConfig = {
   output: 'export',
   // Disable image optimization since it's not supported in export mode
   images: { unoptimized: true },
-  // Disable server actions for static export
+  // Properly configure experimental options
   experimental: {
-    serverActions: false,
+    // Set to false for static export
+    serverActions: false
   },
-  // Static site doesn't support dynamic redirects but we can keep the permanent ones
-  async redirects() {
-    return [
-      {
-        source: '/create-agent',
-        destination: '/new-agent',
-        permanent: true,
-      },
-    ]
-  },
+  // Remove redirects which are not compatible with static export
   // This helps with GitHub Pages and other static hosts
   trailingSlash: true,
 }
