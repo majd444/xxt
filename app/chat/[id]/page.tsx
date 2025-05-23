@@ -7,14 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Paperclip, Bot } from "lucide-react"
 
-// Using a different approach to avoid TypeScript errors with Next.js 15 params
-interface PageProps {
-  params: {
-    id: string;
-  };
-}
+// Direct inline type for Next.js 15 compatibility
 
-export default function ChatPage({ params }: PageProps) {
+export default function ChatPage({ params }: { params: { id: string } }) {
   const chatId = params?.id || 'default';
   
   // Self-contained chat implementation
