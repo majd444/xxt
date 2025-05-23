@@ -1,6 +1,6 @@
 {
   "build": {
-    "command": "npm run static-build",
+    "command": "npm run build --force && npm run export",
     "publish": "out",
     "node_version": "18"
   },
