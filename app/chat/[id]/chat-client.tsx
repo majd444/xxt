@@ -10,7 +10,7 @@ type ChatClientProps = {
   chatId: string;
 };
 
-export default function ChatClient({ chatId }: ChatClientProps) {
+export default function ChatClient({ _chatId }: ChatClientProps) { // Prefixed with _ to indicate unused
   // Self-contained chat implementation
   const [messages, setMessages] = useState([
     {
