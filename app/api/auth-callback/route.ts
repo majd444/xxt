@@ -194,10 +194,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       
       // Generate a JWT for the authenticated user
       const jwt = generateToken({
-        sub: userId,
+        id: userId, // Using 'id' instead of 'sub' to match UserJwtPayload interface
         email: userEmail,
-        provider,
         name
+        // provider is not in UserJwtPayload interface
       });
       
       // Set JWT in cookies and redirect to success page
