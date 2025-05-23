@@ -27,6 +27,12 @@ export function Sidebar() {
           <Users className="mr-3 h-5 w-5" />
           Team
         </Link>
+        <Link href="/chat-static" className="flex items-center px-4 py-3 text-sm rounded-md text-gray-700 hover:bg-gray-100">
+          <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          Chat
+        </Link>
         <Link
           href="/history"
           className="flex items-center px-4 py-3 text-sm rounded-md text-gray-700 hover:bg-gray-100"

@@ -6,9 +6,10 @@ const nextConfig = {
   // Disable image optimization since it's not supported in export mode
   images: { unoptimized: true },
   // Server configuration
-  experimental: {},
-  serverActions: {
-    bodySizeLimit: '2mb'
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb'
+    }
   },
   serverExternalPackages: ['pg', 'mammoth', 'pdf-parse'],
   // Static site doesn't support dynamic redirects but we can keep the permanent ones
