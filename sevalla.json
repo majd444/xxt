@@ -1,7 +1,7 @@
 {
   "build": {
-    "command": "npm run static-build",
-    "publish": "out",
+    "command": "npm run build --force",
+    "publish": ".next",
     "node_version": "18"
   },
   "environment": {

@@ -137,6 +137,16 @@ export default function NewWorkflowPage() {
   const [model, _setModel] = useState("gpt-4")
   const [maxTokens, _setMaxTokens] = useState(2000)
   
+  // Additional state variables for drag and drop functionality
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  
+  // Ensure proper type checking
+  const isConversationType = (type: ComponentType): boolean => type === "conversation"
+  const isToolsType = (type: ComponentType): boolean => type === "tools"
+  const isPromptType = (type: ComponentType): boolean => type === "prompt"
+  
   // Right panel visibility state removed as it's no longer needed
   const workflowRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
@@ -1337,7 +1347,7 @@ export default function NewWorkflowPage() {
             {/* Components */}
             {components.map((component) => {
               // Render different component types
-              return component.type === "tools" ? (
+              return isToolsType(component.type) ? (
                 <Card
                   key={component.id}
                   className="absolute w-[300px] p-4 cursor-move shadow-md"
@@ -1497,7 +1507,7 @@ export default function NewWorkflowPage() {
                     </svg>
                   </div>
 
-                  {component.type !== "conversation" && (
+                  {!isConversationType(component.type) && (
                     <div
                       className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full cursor-pointer"
                       onMouseUp={(e) => draggingConnection && handleCompleteConnection(e, component.id)}
@@ -1507,7 +1517,7 @@ export default function NewWorkflowPage() {
                     <div className="mr-2 text-blue-500">{getComponentIcon(component.type)}</div>
                     <div className="font-medium flex-1">{component.title}</div>
                   </div>
-                  {component.type === "conversation" && (
+                  {isConversationType(component.type) && (
                     <div className="bg-gray-50 p-2 rounded-md text-sm">
                       <textarea
                         id={`conversation-text-${component.id}`}
@@ -1522,7 +1532,7 @@ export default function NewWorkflowPage() {
                       />
                     </div>
                   )}
-                  {component.type === "prompt" && (
+                  {isPromptType(component.type) && (
                     <div className="space-y-3">
                       <div 
                         className="bg-gray-50 p-2 rounded-md text-sm"
