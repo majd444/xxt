@@ -3,10 +3,10 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   experimental: {
-    optimizeCss: true,
-    serverActions: true,
-    serverComponentsExternalPackages: ['debug', 'supports-color']
+    optimizeCss: true
   },
+  serverActions: true,
+  serverExternalPackages: ['debug', 'supports-color'],
   webpack: (config, { isServer }) => {
     // Ensure proper handling of modules in standalone mode
     if (!isServer) {
