@@ -2,5 +2,11 @@
   "version": 2,
   "buildCommand": "next build",
   "outputDirectory": ".next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "installCommand": "npm install --legacy-peer-deps",
+  "ignoreCommand": "node -e \"process.exit(0)\"",
+  "regions": ["iad1"],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

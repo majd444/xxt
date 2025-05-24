@@ -194,11 +194,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       
       // Generate a JWT for the authenticated user
       const jwt = generateToken({
-        id: userId, // Using 'id' instead of 'sub' to match UserJwtPayload interface
+        // Use a numeric ID for the JWT as required by UserJwtPayload
+        // If userId is a string from OAuth, we'll use a hash of it as a numeric ID
+        id: parseInt(userId) || hashStringToNumber(userId),
         email: userEmail,
         name
-        // provider is not in UserJwtPayload interface
       });
+      
+      // Helper function to convert string to a stable number
+      function hashStringToNumber(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = ((hash << 5) - hash) + str.charCodeAt(i);
+          hash |= 0; // Convert to 32bit integer
+        }
+        // Ensure positive number by using absolute value and limiting to safe integer range
+        return Math.abs(hash) % Number.MAX_SAFE_INTEGER;
+      }
       
       // Set JWT in cookies and redirect to success page
       const headers = new Headers();
