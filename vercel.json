@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "buildCommand": "next build",
+  "buildCommand": "npm install --legacy-peer-deps && next build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps",
-  "ignoreCommand": "node -e \"process.exit(0)\"",
+  "installCommand": "echo 'Using custom build command with legacy-peer-deps'",
   "regions": ["iad1"],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
   }
 }
