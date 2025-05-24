@@ -1,12 +1,16 @@
 /** @type {import('next').NextConfig} */
+
+// Configuration for Next.js 15.2.4
+// - serverActions must be under experimental
+// - serverComponentsExternalPackages is used for external packages in server components
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   experimental: {
-    optimizeCss: true
+    optimizeCss: true,
+    serverActions: true
   },
-  serverActions: true,
-  serverExternalPackages: ['debug', 'supports-color'],
+  serverComponentsExternalPackages: ['debug', 'supports-color'],
   webpack: (config, { isServer }) => {
     // Ensure proper handling of modules in standalone mode
     if (!isServer) {
