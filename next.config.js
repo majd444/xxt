@@ -1,15 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Configure for static site export
-  output: 'export',
-  // Disable image optimization since it's not supported in export mode
-  images: { unoptimized: true },
-  // Disable server actions for static export
-  experimental: {
-    serverActions: false,
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't attempt to import server-only modules on the client-side
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        debug: false
+      }
+    }
+    return config
   },
-  // Static site doesn't support dynamic redirects but we can keep the permanent ones
   async redirects() {
     return [
       {

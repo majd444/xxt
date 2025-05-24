@@ -12,8 +12,8 @@ export default function ChatPage({
   params,
   searchParams: _searchParams
 }: {
-  params: Record<string, string>;
-  searchParams?: Record<string, string | string[]>;
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   const chatId = params?.id || 'default';
   
