@@ -144,9 +144,9 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     }
     
     // Build the update query dynamically based on what fields are provided
-    let updateFields = []
-    let queryParams = []
-    let paramIndex = 1
+    let updateFields: string[] = []
+    let queryParams: any[] = []
+    let paramIndex: number = 1
     
     // Helper function to add fields to the update query
     const addField = (fieldName: string, jsonbField: boolean = false) => {

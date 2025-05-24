@@ -8,9 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Send, Paperclip, Bot } from "lucide-react"
 
 // Using a different approach to avoid TypeScript errors with Next.js 15 params
-export default function ChatPage(
-  { params }: { params: { id: string } }
-) {
+export default function ChatPage({
+  params,
+  searchParams: _searchParams
+}: {
+  params: Record<string, string>;
+  searchParams?: Record<string, string | string[]>;
+}) {
   const chatId = params?.id || 'default';
   
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
