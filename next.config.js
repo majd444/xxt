@@ -9,9 +9,22 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
-        debug: false
+        debug: false,
+        'supports-color': false,
+        util: false,
+        os: false,
+        path: false
       }
     }
+
+    // Exclude server-only modules from client bundle
+    if (!isServer) {
+      config.module.rules.push({
+        test: /node_modules[\\/](debug|follow-redirects)[\\/].+/,
+        use: 'null-loader'
+      })
+    }
+
     return config
   },
   async redirects() {
