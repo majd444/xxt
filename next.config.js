@@ -5,9 +5,12 @@ const nextConfig = {
   output: 'export',
   // Disable image optimization since it's not supported in export mode
   images: { unoptimized: true },
-  // Disable server actions for static export
+  // Configuration for server actions
   experimental: {
-    serverActions: false,
+    // Comment out serverActions for static export as it's not properly configured
+    // serverActions: {
+    //   allowedOrigins: ['localhost:3000']
+    // },
   },
   // Static site doesn't support dynamic redirects but we can keep the permanent ones
   async redirects() {
