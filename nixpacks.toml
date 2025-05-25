@@ -2,10 +2,13 @@
 nixPkgs = ['nodejs', 'npm', 'gcc']
 
 [phases.install]
-cmds = ['npm install']
+cmds = ['npm install --legacy-peer-deps --force', 'npm install date-fns@3.3.1 --save --legacy-peer-deps --force --no-package-lock']
 
 [phases.build]
 cmds = ['npm run build']
 
 [start]
 cmd = 'npm start'
+
+[variables]
+NODE_OPTIONS = '--max-old-space-size=4096'
